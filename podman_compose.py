@@ -1079,15 +1079,32 @@ def compose_build(compose, args):
 
 def create_pods(compose, args):
     for pod in compose.pods:
+        delete = False
         podman_args = [
-            "pod", "create",
             "--name={}".format(pod["name"]),
             "--share", "net",
         ]
-        ports = pod.get("ports", None) or []
+
+        ports = sorted(pod.get("ports")) or []
         for i in ports:
             podman_args.extend(['-p', i])
-        compose.podman.run(podman_args)
+        try:
+            res = json.loads(compose.podman.output(["pod", "inspect", pod["name"]], stderr=subprocess.DEVNULL))
+            CreateCommand = res['Config']['labels']['io.podman.compose.CreateCommand'].split(" ")
+            if CreateCommand == podman_args:
+                print("Pod {} already exists".format(pod["name"]))
+                return
+            else:
+               delete = True
+        except subprocess.CalledProcessError:
+            pass
+        except KeyError:
+            delete = True
+        if delete:
+            print("Recreate {} pod".format(pod['name']))
+            compose.podman.run(["pod", "rm","-f", pod["name"]], sleep=0)
+        CreateCommandLabel = ['--label', 'io.podman.compose.CreateCommand=' + ' '.join(podman_args)]
+        compose.podman.run(["pod", "create"] + podman_args + CreateCommandLabel)
 
 def up_specific(compose, args):
     deps = []
