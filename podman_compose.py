@@ -525,6 +525,10 @@ def container_to_args(compose, cnt, detached=True, podman_command='run'):
     if net:
         podman_args.extend(['--network', net])
     env = norm_as_list(cnt.get('environment', {}))
+    for c in cnt.get('cap_add', []):
+        podman_args.extend(['--cap-add', c])
+    for c in cnt.get('cap_drop', []):
+        podman_args.extend(['--cap-drop', c])
     for d in cnt.get('devices', []):
         podman_args.extend(['--device', d])
     for e in env:
@@ -1063,13 +1067,15 @@ def build_one(compose, args, cnt):
         "build", "-t", cnt["image"],
         "-f", dockerfile
     ]
+    if "target" in build_desc:
+        build_args.extend(["--target", build_desc["target"]])
     container_to_ulimit_args(cnt, build_args)
     if args.no_cache:
         build_args.append("--no-cache")
     if getattr(args, 'pull_always', None): build_args.append("--pull-always")
     elif getattr(args, 'pull', None): build_args.append("--pull")
     args_list = norm_as_list(build_desc.get('args', {}))
-    for build_arg in args_list:
+    for build_arg in args_list + args.build_arg:
         build_args.extend(("--build-arg", build_arg,))
     build_args.append(ctx)
     compose.podman.run(build_args, sleep=0)
@@ -1431,6 +1437,8 @@ def compose_build_parse(parser):
         help="attempt to pull a newer version of the image", action='store_true')
     parser.add_argument("--pull-always",
         help="attempt to pull a newer version of the image, Raise an error even if the image is present locally.", action='store_true')
+    parser.add_argument("--build-arg", metavar="key=val", action="append", default=[],
+        help="Set build-time variables for services.")
 
     parser.add_argument('services', metavar='services', nargs='*',default=None,
                         help='affected services')
