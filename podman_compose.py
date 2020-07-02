@@ -1259,7 +1259,7 @@ def transfer_service_status(compose, args, action):
     if timeout is not None:
         podman_args.extend(['-t', "{}".format(timeout)])
     for target in targets:
-        if compose.podman.run(podman_args+[target], sleep=0).returncode==1:
+        if compose.podman.run(podman_args+[target], sleep=0).returncode == 1:
             exit(1)
 
 @cmd_run(podman_compose, 'start', 'start specific services')
