@@ -680,9 +680,9 @@ class Podman:
         self.podman_path = podman_path
         self.dry_run = dry_run
 
-    def output(self, podman_args,stderr=None):
-        cmd = [self.podman_path]+podman_args
-        return subprocess.check_output(cmd,stderr=stderr)
+    def output(self, podman_args, stderr=None):
+        cmd = [self.podman_path] + podman_args
+        return subprocess.check_output(cmd, stderr=stderr)
 
     def run(self, podman_args, wait=True, sleep=1):
         podman_args_str = [str(arg) for arg in podman_args]
@@ -1124,6 +1124,7 @@ def create_pods(compose, args):
         compose.podman.run(["pod", "create"] + podman_args + CreateCommandLabel)
 
 
+<<<<<<< HEAD
 def up_specific(compose, args):
     deps = []
     if not args.no_deps:
@@ -1134,6 +1135,8 @@ def up_specific(compose, args):
     compose_up(compose,args)
     print("services", args.services)
     raise NotImplementedError("starting specific services is not yet implemented")
+=======
+>>>>>>> up_specific
 def compose_up_run(compose, cnt, args):
     podman_command = 'run' if args.detach and not args.no_start else 'create'
     create=False
