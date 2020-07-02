@@ -1439,7 +1439,6 @@ def compose_build_parse(parser):
         help="attempt to pull a newer version of the image, Raise an error even if the image is present locally.", action='store_true')
     parser.add_argument("--build-arg", metavar="key=val", action="append", default=[],
         help="Set build-time variables for services.")
-
     parser.add_argument('services', metavar='services', nargs='*',default=None,
                         help='affected services')
     parser.add_argument("--no-cache",
