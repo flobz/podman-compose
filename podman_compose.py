@@ -1303,7 +1303,7 @@ def compose_exec(compose, args):
         cnt=compose.container_by_name[container_name]
         podman_args = ['exec']
         if args.user:
-            podman_args.extend(["-u",args.user[0]])
+            podman_args.extend(["-u", args.user[0]])
         if cnt.get('stdin_open'):
             podman_args.append('-i')
         if cnt.get('tty'):
