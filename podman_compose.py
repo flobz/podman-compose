@@ -126,7 +126,7 @@ def fix_mount_dict(mount_dict, proj_name, srv_name):
             # missing source
             mount_dict["source"] = "_".join([
                 proj_name, srv_name,
-                hashlib.md5(mount_dict["target"].encode("utf-8")).hexdigest(),
+                hashlib.sha256(mount_dict["target"].encode("utf-8")).hexdigest(),
             ])
         else:
             # prefix with proj_name
@@ -145,9 +145,9 @@ def fix_mount_dict(mount_dict, proj_name, srv_name):
 # ${VARIABLE?err} raise error if not set
 # $$ means $
 
-var_re = re.compile(r'(?<!\$)\$(\{(?:[^\s\$:\-\}]+)\}|(?:[^\s\$\{\}]+))')
-var_def_re = re.compile(r'\$\{([^\s\$:\-\}]+)(:)?-([^\}]+)\}')
-var_err_re = re.compile(r'\$\{([^\s\$:\-\}]+)(:)?\?([^\}]+)\}')
+var_re = re.compile(r'\$(\{(?:[^\s\$:\-\}]+)\}|(?:[^\s\$\{\}]+))')
+var_def_re = re.compile(r'\$\{([^\s\$:\-\}]+)(:)?-([^\}]*)\}')
+var_err_re = re.compile(r'\$\{([^\s\$:\-\}]+)(:)?\?([^\}]*)\}')
 
 def dicts_get(dicts, key, fallback='', fallback_empty=False):
     """
@@ -566,10 +566,14 @@ def container_to_args(compose, cnt, detached=True, podman_command='run'):
         podman_args.append('--tty')
     if cnt.get('privileged', None):
         podman_args.append('--privileged')
+    if cnt.get('restart', None) is not None:
+        podman_args.extend(['--restart', cnt['restart']])
     container_to_ulimit_args(cnt, podman_args)
     # currently podman shipped by fedora does not package this
-    # if cnt.get('init', None):
-    #    args.append('--init')
+    if cnt.get('init', None):
+        podman_args.append('--init')
+    if cnt.get('init-path', None):
+        podman_args.extend(['--init-path', cnt['init-path']])
     entrypoint = cnt.get('entrypoint', None)
     if entrypoint is not None:
         if is_str(entrypoint):
@@ -874,6 +878,9 @@ class PodmanCompose:
             with open(filename, 'r') as f:
                 content = yaml.safe_load(f)
                 #print(filename, json.dumps(content, indent = 2))
+                if not isinstance(content, dict):
+                    sys.stderr.write("Compose file does not contain a top level object: %s\n"%filename)
+                    exit(1)
                 content = normalize(content)
                 #print(filename, json.dumps(content, indent = 2))
                 content = rec_subs(content, [os.environ, dotenv_dict])
@@ -1107,7 +1114,7 @@ def create_pods(compose, args):
             podman_args.extend(['-p', i])
         try:
             res = json.loads(compose.podman.output(["pod", "inspect", pod["name"]], stderr=subprocess.DEVNULL))
-            CreateCommand = res['Config']['labels']['io.podman.compose.CreateCommand'].split(" ")
+            CreateCommand = res['Labels']['io.podman.compose.CreateCommand'].split(" ")
             if CreateCommand == podman_args:
                 print("Pod {} already exists".format(pod["name"]))
                 return
@@ -1202,12 +1209,13 @@ def compose_up(compose, args):
         thread.start()
         threads.append(thread)
         time.sleep(1)
-    while True:
+    while threads:
         for thread in threads:
             thread.join(timeout=1.0)
-            if thread.is_alive(): continue
-            if args.abort_on_container_exit:
-                exit(-1)
+            if not thread.is_alive():
+                threads.remove(thread)
+                if args.abort_on_container_exit:
+                    exit(-1)
 
 
 @cmd_run(podman_compose, 'down', 'tear down entire stack')
@@ -1321,6 +1329,8 @@ def compose_exec(compose, args):
         podman_args = ['exec']
         if args.user:
             podman_args.extend(["-u", args.user[0]])
+        if args.workdir:
+            podman_args.extend(["-w", args.workdir])
         if cnt.get('stdin_open'):
             podman_args.append('-i')
         if cnt.get('tty'):
@@ -1369,7 +1379,6 @@ def compose_up_parse(parser):
         help="Return the exit code of the selected service container. Implies --abort-on-container-exit.")
     parser.add_argument('services', metavar='SERVICES', nargs='*',
         help='service names to start')
-
 
 @cmd_parse(podman_compose, 'run')
 def compose_run_parse(parser):
@@ -1448,6 +1457,9 @@ def compose_exec_parse(parser):
                         help='command to execute')
     parser.add_argument("-u", "--user", metavar='USER',
         help="Run the command as this user.", action='append')
+    parser.add_argument("-w", "--workdir", type=str, default=None,
+                        help="Working directory inside the container")
+
 @cmd_parse(podman_compose, 'build')
 def compose_build_parse(parser):
     parser.add_argument("--pull",
@@ -1460,6 +1472,8 @@ def compose_build_parse(parser):
                         help='affected services')
     parser.add_argument("--no-cache",
                         help="Do not use cache when building the image.", action='store_true')
+    parser.add_argument('services', metavar='SERVICES', nargs='*',
+        help='service names to start')
 
 def main():
     podman_compose.run()
