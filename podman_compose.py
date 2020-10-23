@@ -145,9 +145,9 @@ def fix_mount_dict(mount_dict, proj_name, srv_name):
 # ${VARIABLE?err} raise error if not set
 # $$ means $
 
-var_re = re.compile(r'\$(\{(?:[^\s\$:\-\}]+)\}|(?:[^\s\$\{\}]+))')
-var_def_re = re.compile(r'\$\{([^\s\$:\-\}]+)(:)?-([^\}]*)\}')
-var_err_re = re.compile(r'\$\{([^\s\$:\-\}]+)(:)?\?([^\}]*)\}')
+var_re = re.compile(r'(?<!\$)\$(\{(?:[^\s\$:\-\}]+)\}|(?:[^\s\$\{\}]+))')
+var_def_re = re.compile(r'\$\{([^\s\$:\-\}]+)(:)?-([^\}]+)\}')
+var_err_re = re.compile(r'\$\{([^\s\$:\-\}]+)(:)?\?([^\}]+)\}')
 
 def dicts_get(dicts, key, fallback='', fallback_empty=False):
     """
@@ -1077,12 +1077,14 @@ def build_one(compose, args, cnt):
     if "target" in build_desc:
         build_args.extend(["--target", build_desc["target"]])
     container_to_ulimit_args(cnt, build_args)
-    if args.no_cache:
+    if "no_cache" in args:
         build_args.append("--no-cache")
     if getattr(args, 'pull_always', None): build_args.append("--pull-always")
     elif getattr(args, 'pull', None): build_args.append("--pull")
     args_list = norm_as_list(build_desc.get('args', {}))
-    for build_arg in args_list + args.build_arg:
+    if "build_arg" in args:
+        args_list.extend(args.build_arg)
+    for build_arg in args_list:
         build_args.extend(("--build-arg", build_arg,))
     build_args.append(ctx)
     compose.podman.run(build_args, sleep=0)
