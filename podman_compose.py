@@ -1474,8 +1474,7 @@ def compose_build_parse(parser):
                         help='affected services')
     parser.add_argument("--no-cache",
                         help="Do not use cache when building the image.", action='store_true')
-    parser.add_argument('services', metavar='SERVICES', nargs='*',
-        help='service names to start')
+
 
 def main():
     podman_compose.run()
