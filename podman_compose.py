@@ -1087,7 +1087,9 @@ def build_one(compose, args, cnt):
     for build_arg in args_list:
         build_args.extend(("--build-arg", build_arg,))
     build_args.append(ctx)
-    compose.podman.run(build_args, sleep=0)
+    res = compose.podman.run(build_args, sleep=0)
+    if res.returncode !=0:
+        exit(res.returncode)
 
 @cmd_run(podman_compose, 'build', 'build stack images')
 def compose_build(compose, args):
