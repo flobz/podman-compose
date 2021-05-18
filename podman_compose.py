@@ -1113,7 +1113,7 @@ def create_pods(compose, args):
             "--share", "net",
         ]
 
-        ports = sorted(pod.get("ports")) or []
+        ports = sorted(pod.get("ports",[])) or []
         for i in ports:
             podman_args.extend(['-p', i])
         try:
